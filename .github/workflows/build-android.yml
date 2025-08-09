@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       
     - name: Setup Node.js
@@ -31,79 +31,68 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Build for production
+    - name: Build web application
       run: |
-        export NODE_ENV=production
         npm run build
-      
-    - name: Verify build output
-      run: |
         ls -la dist/public/
-        echo "Build files created successfully"
+        echo "✅ Build completed successfully"
       
-    - name: Add Android platform
-      run: npx cap add android --confirm
-      
-    - name: Sync Capacitor
+    - name: Sync Capacitor with Android
       run: npx cap sync android
       
-    - name: Make gradlew executable
-      run: chmod +x android/gradlew
-      
     - name: Build Android APK
-      working-directory: ./android
-      run: ./gradlew assembleDebug --no-daemon --stacktrace
+      run: |
+        cd android
+        chmod +x ./gradlew
+        ./gradlew assembleDebug --no-daemon --stacktrace
+        echo "✅ APK build completed"
       
-    - name: Upload APK
+    - name: Verify APK creation
+      run: |
+        ls -la android/app/build/outputs/apk/debug/
+        file android/app/build/outputs/apk/debug/app-debug.apk
+      
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: jamb-mock-pro-apk
+        name: jamb-mock-pro-android-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
       
-    - name: Generate build number
-      id: build_number
-      run: echo "BUILD_NUMBER=$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT
-      
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v2
       with:
-        tag_name: v1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
-        release_name: JAMB Mock Pro v1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
+        tag_name: v1.0.${{ github.run_number }}
+        name: JAMB Mock Pro v1.0.${{ github.run_number }}
         body: |
-          📱 **JAMB Mock Pro Android APK**
+          📱 **JAMB Mock Pro - Android APK Ready**
           
-          **How to Install:**
-          1. Download jamb-mock-pro.apk below
+          **Installation Instructions:**
+          1. Download `jamb-mock-pro.apk` below
           2. Enable "Install from unknown sources" in Android settings
-          3. Tap the APK file to install
-          4. Open JAMB Mock Pro from your apps
+          3. Tap APK file to install
+          4. Launch JAMB Mock Pro
           
-          **Features:**
-          - Complete JAMB UTME practice questions
-          - Timed mock examinations (2 hours)
-          - Firebase authentication
-          - Offline functionality
-          - All subjects included
+          **App Features:**
+          ✅ Complete JAMB UTME practice questions
+          ✅ Timed mock examinations (2 hours)
+          ✅ All subjects: English, Math, Physics, Chemistry, Biology
+          ✅ Firebase authentication with Google Sign-in
+          ✅ Offline functionality
+          ✅ Progress tracking and analytics
           
-          **App Details:**
-          - Package: com.jambmockpro.app
-          - Version: 1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
-          - Size: ~15-20MB
+          **Technical Specifications:**
+          - Package ID: com.jambmockpro.app
+          - Version: 1.0.${{ github.run_number }}
+          - Min Android: API 24 (Android 7.0)
+          - Target Android: API 34 (Android 14)
+          - File Size: ~15-20MB
           
-          Ready for Google Play Store submission!
+          **Ready for Google Play Store submission!**
+        files: |
+          android/app/build/outputs/apk/debug/app-debug.apk
         draft: false
         prerelease: false
-        
-    - name: Upload APK to Release
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: android/app/build/outputs/apk/debug/app-debug.apk
-        asset_name: jamb-mock-pro.apk
-        asset_content_type: application/vnd.android.package-archive
