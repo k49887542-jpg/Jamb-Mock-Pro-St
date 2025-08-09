@@ -31,23 +31,10 @@ jobs:
     - name: Install dependencies
       run: |
         npm ci
-        npm install @capacitor/android @capacitor/cli @capacitor/core
-        echo "✅ Dependencies installed successfully"
-      
-    - name: Verify Capacitor installation
-      run: |
-        npx cap --version
-        echo "Capacitor CLI version confirmed"
+        npm install @capacitor/android@latest @capacitor/cli@latest @capacitor/core@latest
       
     - name: Build web application
-      run: |
-        npm run build
-        echo "Verifying build output..."
-        ls -la dist/
-        ls -la dist/public/
-        echo "Build directory contents:"
-        find dist/public -type f | head -10
-        echo "✅ Build completed successfully"
+      run: npm run build
       env:
         VITE_FIREBASE_API_KEY: "AIzaSyCJLHX7TNrgb3ZJGhU7ilMTP-4TY0I3nQU"
         VITE_FIREBASE_AUTH_DOMAIN: "jamb-mock-pro.firebaseapp.com"
@@ -57,63 +44,18 @@ jobs:
         VITE_FIREBASE_APP_ID: "1:377236731071:web:9a52738d793a5abad8020a"
         VITE_FIREBASE_MEASUREMENT_ID: "G-XTK34JLZN4"
         VITE_PAYSTACK_PUBLIC_KEY: "pk_test_default_key_for_build"
-        VITE_HCAPTCHA_SITE_KEY: "10000000-ffff-ffff-ffff-000000000001"
       
-    - name: Ensure Android platform exists
+    - name: Remove existing Android platform and rebuild from scratch
       run: |
-        echo "Checking for Android platform..."
-        if [ ! -d "./android" ]; then
-          echo "Android platform not found, adding it..."
-          npx cap add android
-        else
-          echo "✅ Android platform exists"
-        fi
-        echo "Current directory structure:"
-        ls -la
-        
-    - name: Sync Capacitor with Android
-      run: |
-        echo "Starting Capacitor sync..."
-        npx cap sync android --verbose
-        echo "Verifying sync results..."
-        ls -la android/
-        if [ -d "android/app/src/main/assets" ]; then
-          echo "✅ Assets directory exists"
-          ls -la android/app/src/main/assets/
-        else
-          echo "❌ Assets directory missing"
-          exit 1
-        fi
-      
-    - name: Prepare Gradle build
-      run: |
-        cd android
-        echo "Making gradlew executable..."
-        chmod +x ./gradlew
-        echo "Testing Gradle wrapper..."
-        ./gradlew --version
-        echo "✅ Gradle ready"
+        rm -rf android
+        npx cap add android
+        npx cap sync android
       
     - name: Build Android APK
       run: |
         cd android
-        echo "Building debug APK..."
-        ./gradlew clean assembleDebug --no-daemon --stacktrace --info
-        echo "✅ APK build completed"
-      
-    - name: Verify APK creation
-      run: |
-        echo "Checking APK output..."
-        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-          echo "✅ APK file found"
-          ls -la android/app/build/outputs/apk/debug/
-          file android/app/build/outputs/apk/debug/app-debug.apk
-        else
-          echo "❌ APK file not found"
-          echo "Build output directory contents:"
-          find android/app/build -name "*.apk" 2>/dev/null || echo "No APK files found"
-          exit 1
-        fi
+        chmod +x ./gradlew
+        ./gradlew assembleDebug --no-daemon --stacktrace
       
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
@@ -132,25 +74,24 @@ jobs:
           📱 **JAMB Mock Pro - Android APK Ready**
           
           **Installation Instructions:**
-          1. Download `jamb-mock-pro.apk` below
+          1. Download the APK file below
           2. Enable "Install from unknown sources" in Android settings
           3. Tap APK file to install
           4. Launch JAMB Mock Pro
           
           **App Features:**
-          ✅ Complete JAMB UTME practice questions
-          ✅ Timed mock examinations (2 hours)
-          ✅ All subjects: English, Math, Physics, Chemistry, Biology
-          ✅ Firebase authentication with Google Sign-in
-          ✅ Offline functionality
-          ✅ Progress tracking and analytics
+          - Complete JAMB UTME practice questions
+          - Timed mock examinations (2 hours)
+          - All subjects: English, Math, Physics, Chemistry, Biology
+          - Firebase authentication with Google Sign-in
+          - Offline functionality
+          - Progress tracking and analytics
           
           **Technical Specifications:**
           - Package ID: com.jambmockpro.app
           - Version: 1.0.${{ github.run_number }}
           - Min Android: API 24 (Android 7.0)
           - Target Android: API 34 (Android 14)
-          - File Size: ~15-20MB
           
           **Ready for Google Play Store submission!**
         files: |
