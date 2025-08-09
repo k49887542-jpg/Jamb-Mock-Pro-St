@@ -15,13 +15,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
+    - name: Setup Node.js 18
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         
-    - name: Setup JDK 17
+    - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
@@ -31,69 +31,39 @@ jobs:
       uses: android-actions/setup-android@v3
       
     - name: Install dependencies
-      run: npm install
+      run: npm ci
       
     - name: Build web app
       run: npm run build
       
-    - name: Sync Capacitor
+    - name: Capacitor sync
       run: npx cap sync android
       
-    - name: Grant execute permission for gradlew
+    - name: Make gradlew executable
       run: chmod +x android/gradlew
       
-    - name: Build APK
-      run: |
-        cd android
-        ./gradlew assembleDebug --no-daemon
-        
+    - name: Build Android APK
+      working-directory: ./android
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
+      
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: jamb-mock-pro-debug-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
-        
+
   release:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - name: Download APK artifact
+      uses: actions/download-artifact@v4
       with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Setup JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      
-    - name: Install dependencies
-      run: npm install
-      
-    - name: Build web app
-      run: npm run build
-      
-    - name: Sync Capacitor
-      run: npx cap sync android
-      
-    - name: Grant execute permission for gradlew
-      run: chmod +x android/gradlew
-      
-    - name: Build APK
-      run: |
-        cd android
-        ./gradlew assembleDebug --no-daemon
+        name: jamb-mock-pro-debug-apk
+        path: ./
         
     - name: Generate build number
       id: build_number
@@ -108,26 +78,28 @@ jobs:
         tag_name: v1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
         release_name: JAMB Mock Pro v1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
         body: |
-          📱 **JAMB Mock Pro Android APK**
+          📱 **JAMB Mock Pro Android APK - Ready for Installation**
           
-          **Ready for Installation:**
-          - Download the APK file below
-          - Install on any Android device
-          - Works offline for practice questions
-          - Native app experience
+          **Download Instructions:**
+          1. Download `jamb-mock-pro.apk` below
+          2. Enable "Install from unknown sources" in Android settings
+          3. Tap the APK file to install
+          4. Launch JAMB Mock Pro from your app drawer
           
           **Features:**
-          ✅ Practice Mode with explanations
-          ✅ Timed Mock Exams (2 hours)
-          ✅ Performance Analytics
-          ✅ Offline functionality
-          ✅ All JAMB subjects included
+          ✅ Complete JAMB UTME practice questions
+          ✅ Timed Mock Exams (2 hours, 180 questions)
+          ✅ Firebase Authentication (Google Sign-in)
+          ✅ Performance Analytics & Progress Tracking
+          ✅ Offline Practice Mode with Explanations
+          ✅ All Subjects: English, Math, Physics, Chemistry, Biology
           
-          **Installation:**
-          1. Download `jamb-mock-pro.apk`
-          2. Enable "Install from unknown sources" on Android
-          3. Tap the APK file to install
-          4. Open JAMB Mock Pro from your app drawer
+          **Technical Details:**
+          - Package: com.jambmockpro.app
+          - Version: 1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
+          - Min Android: API 24 (Android 7.0)
+          - Target Android: API 34 (Android 14)
+          - Size: ~15-20MB
           
           Build: ${{ github.sha }}
         draft: false
@@ -139,6 +111,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: android/app/build/outputs/apk/debug/app-debug.apk
+        asset_path: ./app-debug.apk
         asset_name: jamb-mock-pro.apk
         asset_content_type: application/vnd.android.package-archive
