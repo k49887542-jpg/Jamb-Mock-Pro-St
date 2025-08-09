@@ -28,17 +28,29 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Install dependencies
-      run: npm ci
+    - name: Clean and install dependencies
+      run: |
+        npm ci --prefer-offline
+        echo "Dependencies installed successfully"
       
     - name: Build web application
       run: |
         npm run build
+        echo "Verifying build output..."
+        ls -la dist/
         ls -la dist/public/
+        echo "Checking for required files..."
+        test -f dist/public/index.html && echo "✅ index.html found" || echo "❌ index.html missing"
+        test -d dist/public/assets && echo "✅ assets directory found" || echo "❌ assets directory missing"
         echo "✅ Build completed successfully"
       
     - name: Sync Capacitor with Android
-      run: npx cap sync android
+      run: |
+        echo "Starting Capacitor sync..."
+        npx cap sync android
+        echo "Verifying Android platform setup..."
+        ls -la android/app/src/main/assets/
+        echo "✅ Capacitor sync completed successfully"
       
     - name: Build Android APK
       run: |
@@ -95,4 +107,4 @@ jobs:
         draft: false
         prerelease: false
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}EN }}
