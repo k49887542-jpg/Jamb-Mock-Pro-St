@@ -3,8 +3,6 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -15,13 +13,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js 18
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         
-    - name: Setup Java 17
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         java-version: '17'
@@ -33,10 +31,20 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Build web app
-      run: npm run build
+    - name: Build for production
+      run: |
+        export NODE_ENV=production
+        npm run build
       
-    - name: Capacitor sync
+    - name: Verify build output
+      run: |
+        ls -la dist/public/
+        echo "Build files created successfully"
+      
+    - name: Add Android platform
+      run: npx cap add android --confirm
+      
+    - name: Sync Capacitor
       run: npx cap sync android
       
     - name: Make gradlew executable
@@ -46,25 +54,13 @@ jobs:
       working-directory: ./android
       run: ./gradlew assembleDebug --no-daemon --stacktrace
       
-    - name: Upload APK Artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: jamb-mock-pro-debug-apk
+        name: jamb-mock-pro-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
-
-  release:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Download APK artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: jamb-mock-pro-debug-apk
-        path: ./
-        
+      
     - name: Generate build number
       id: build_number
       run: echo "BUILD_NUMBER=$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT
@@ -78,39 +74,36 @@ jobs:
         tag_name: v1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
         release_name: JAMB Mock Pro v1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
         body: |
-          📱 **JAMB Mock Pro Android APK - Ready for Installation**
+          📱 **JAMB Mock Pro Android APK**
           
-          **Download Instructions:**
-          1. Download `jamb-mock-pro.apk` below
+          **How to Install:**
+          1. Download jamb-mock-pro.apk below
           2. Enable "Install from unknown sources" in Android settings
           3. Tap the APK file to install
-          4. Launch JAMB Mock Pro from your app drawer
+          4. Open JAMB Mock Pro from your apps
           
           **Features:**
-          ✅ Complete JAMB UTME practice questions
-          ✅ Timed Mock Exams (2 hours, 180 questions)
-          ✅ Firebase Authentication (Google Sign-in)
-          ✅ Performance Analytics & Progress Tracking
-          ✅ Offline Practice Mode with Explanations
-          ✅ All Subjects: English, Math, Physics, Chemistry, Biology
+          - Complete JAMB UTME practice questions
+          - Timed mock examinations (2 hours)
+          - Firebase authentication
+          - Offline functionality
+          - All subjects included
           
-          **Technical Details:**
+          **App Details:**
           - Package: com.jambmockpro.app
           - Version: 1.0.${{ steps.build_number.outputs.BUILD_NUMBER }}
-          - Min Android: API 24 (Android 7.0)
-          - Target Android: API 34 (Android 14)
           - Size: ~15-20MB
           
-          Build: ${{ github.sha }}
+          Ready for Google Play Store submission!
         draft: false
         prerelease: false
         
-    - name: Upload Release APK
+    - name: Upload APK to Release
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./app-debug.apk
+        asset_path: android/app/build/outputs/apk/debug/app-debug.apk
         asset_name: jamb-mock-pro.apk
         asset_content_type: application/vnd.android.package-archive
